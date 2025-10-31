@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Ventas y Finanzas</title>
-    <!-- Carga de Tailwind CSS -->
+    <title>Gestión de Ventas y Finanzas de Vitor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -14,7 +13,7 @@
         }
         .tab-button.active {
             border-bottom-width: 3px;
-            border-color: #3b82f6; /* blue-500 */
+            border-color: #3b82f6;
             color: #3b82f6;
             font-weight: 600;
         }
@@ -27,15 +26,12 @@
     </style>
 </head>
 <body>
-
 <div id="app" class="min-h-screen bg-gray-50 flex flex-col">
-    <!-- Header -->
     <header class="bg-white shadow-md sticky top-0 z-10">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
             <h1 class="text-xl font-bold text-gray-800">Control de Negocio | Vitor</h1>
             <div class="text-xs text-gray-500 rounded-full bg-gray-100 px-3 py-1 truncate" id="userIdDisplay">Cargando...</div>
         </div>
-        <!-- Tabs -->
         <nav class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-4 border-b border-gray-200">
             <button class="tab-button py-3 px-2 text-sm text-gray-600 hover:text-blue-500 active" data-tab="vendedores">Vendedores</button>
             <button class="tab-button py-3 px-2 text-sm text-gray-600 hover:text-blue-500" data-tab="pos">Puntos de Venta</button>
@@ -45,14 +41,10 @@
         </nav>
     </header>
 
-    <!-- Main Content Area -->
     <main class="flex-grow max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-        <div id="content-container">
-            <!-- Content will be injected here -->
-        </div>
+        <div id="content-container"></div>
     </main>
 
-    <!-- Custom Modal for Alerts/Confirmation -->
     <div id="custom-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 opacity-0 pointer-events-none">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transform scale-95 transition-all">
             <h3 class="text-lg font-semibold text-gray-900 mb-4" id="modal-title">Atención</h3>
@@ -64,7 +56,6 @@
         </div>
     </div>
 
-    <!-- Loading Indicator -->
     <div id="loading-overlay" class="fixed inset-0 bg-gray-100 bg-opacity-70 flex items-center justify-center z-50 transition-opacity duration-300">
         <div class="flex flex-col items-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -74,9 +65,10 @@
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, query, updateDoc, deleteDoc, addDoc, Timestamp, runTransaction, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    // Si usas Firebase, descomenta las siguientes líneas y configura tu proyecto
+    // import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    // import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    // import { getFirestore, doc, setDoc, onSnapshot, collection, query, updateDoc, deleteDoc, addDoc, Timestamp, runTransaction, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- Variables Globales ---
     const TABS = { VENDEDORES: 'vendedores', POS: 'pos', GASTOS: 'gastos', RESUMEN: 'resumen', CONFIG: 'config' };
@@ -85,13 +77,12 @@
     let puntosDeVenta = [];
     let movimientosPOS = [];
     let gastos = [];
-    let precioUnidad = 50;
+    let precioUnidad = 10;
     let userId = null;
-    let db, auth;
     let isAuthReady = false;
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    const firebaseConfig = null; // Fuerza modo localStorage para este ejemplo
+    // const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
     // --- DOM Elements ---
     const contentContainer = document.getElementById('content-container');
@@ -107,29 +98,35 @@
         GASTOS: `gastos_${appId}_`,
         CONFIG: `config_${appId}_`
     };
-    function getLSKey(base) {
-        return base + userId;
-    }
-    function saveToLS(key, value) {
-        localStorage.setItem(key, JSON.stringify(value));
-    }
+    function getLSKey(base) { return base + userId; }
+    function saveToLS(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
     function loadFromLS(key, fallback) {
-        try {
-            return JSON.parse(localStorage.getItem(key)) || fallback;
-        } catch {
-            return fallback;
-        }
+        try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
     }
-    // --- VENDEDORES modo LocalStorage ---
+
+    // --- Función de fechas compatible ---
+    function formatFecha(fecha) {
+        if (!fecha) return { date: '', time: '' };
+        if (typeof fecha === "string") {
+            const d = new Date(fecha);
+            return {
+                date: d.toLocaleDateString('es-ES', { dateStyle: 'short' }),
+                time: d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+            };
+        } else if (typeof fecha.toDate === "function") {
+            const d = fecha.toDate();
+            return {
+                date: d.toLocaleDateString('es-ES', { dateStyle: 'short' }),
+                time: d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+            };
+        }
+        return { date: '', time: '' };
+    }
+
+    // --- Métodos LocalStorage para cada entidad ---
     async function addVendedorLS(name) {
         const arr = loadFromLS(getLSKey(LS_KEYS.VENDEDORES), []);
-        arr.push({
-            id: crypto.randomUUID(),
-            nombre: name,
-            entregado_qty: 0,
-            vendido_qty: 0,
-            pagado: 0,
-        });
+        arr.push({ id: crypto.randomUUID(), nombre: name, entregado_qty: 0, vendido_qty: 0, pagado: 0 });
         saveToLS(getLSKey(LS_KEYS.VENDEDORES), arr);
         vendedores = arr;
         renderVendedores();
@@ -138,21 +135,14 @@
         let arr = loadFromLS(getLSKey(LS_KEYS.VENDEDORES), []);
         const v = arr.find(v => v.id === id);
         if (!v) return;
-        if (type === 'ENTREGA') {
-            v.entregado_qty += amount;
-        } else if (type === 'VENTA') {
+        if (type === 'ENTREGA') v.entregado_qty += amount;
+        else if (type === 'VENTA') {
             const stock = v.entregado_qty - v.vendido_qty;
-            if (amount > stock) {
-                showModal("Error", "La cantidad vendida excede el stock pendiente.", () => {}, false);
-                return;
-            }
+            if (amount > stock) { showModal("Error", "La cantidad vendida excede el stock pendiente.", () => {}, false); return; }
             v.vendido_qty += amount;
         } else if (type === 'PAGO') {
             const deuda = v.vendido_qty * precioUnidad - v.pagado;
-            if (amount > deuda + 0.01) {
-                showModal("Error", "El pago excede la deuda pendiente.", () => {}, false);
-                return;
-            }
+            if (amount > deuda + 0.01) { showModal("Error", "El pago excede la deuda pendiente.", () => {}, false); return; }
             v.pagado += amount;
         }
         saveToLS(getLSKey(LS_KEYS.VENDEDORES), arr);
@@ -166,14 +156,9 @@
         vendedores = arr;
         renderVendedores();
     }
-    // --- PUNTOS DE VENTA modo LocalStorage ---
     async function addPuntoDeVentaLS(name) {
         const arr = loadFromLS(getLSKey(LS_KEYS.PUNTOS_DE_VENTA), []);
-        arr.push({
-            id: crypto.randomUUID(),
-            nombre: name,
-            creado_en: new Date().toISOString(),
-        });
+        arr.push({ id: crypto.randomUUID(), nombre: name, creado_en: new Date().toISOString() });
         saveToLS(getLSKey(LS_KEYS.PUNTOS_DE_VENTA), arr);
         puntosDeVenta = arr;
         renderPuntosDeVenta();
@@ -185,7 +170,6 @@
         puntosDeVenta = arr;
         renderPuntosDeVenta();
     }
-    // --- MOVIMIENTOS POS modo LocalStorage ---
     async function addMovimientoPOSLS(nombre, monto, envia, recibe) {
         const arr = loadFromLS(getLSKey(LS_KEYS.MOVIMIENTOS_POS), []);
         arr.push({
@@ -207,7 +191,6 @@
         movimientosPOS = arr;
         renderPuntosDeVenta();
     }
-    // --- GASTOS modo LocalStorage ---
     async function addGastoLS(monto, concepto, categoria) {
         const arr = loadFromLS(getLSKey(LS_KEYS.GASTOS), []);
         arr.push({
@@ -229,14 +212,12 @@
         gastos = arr;
         renderGastos();
     }
-    // --- CONFIGURACIÓN modo LocalStorage ---
     async function updatePrecioUnidadLS(newPrice) {
         const config = { precioUnidad: newPrice };
         saveToLS(getLSKey(LS_KEYS.CONFIG), config);
         precioUnidad = newPrice;
         showModal("Éxito", `El precio por unidad se ha actualizado a $${newPrice.toFixed(2)}. Las deudas de los vendedores se recalcularán.`, () => {}, false);
     }
-    // --- Cargar todo desde LocalStorage al iniciar ---
     function loadAllLS() {
         vendedores = loadFromLS(getLSKey(LS_KEYS.VENDEDORES), []);
         puntosDeVenta = loadFromLS(getLSKey(LS_KEYS.PUNTOS_DE_VENTA), []);
@@ -246,67 +227,353 @@
         precioUnidad = config.precioUnidad || 10;
     }
 
-    function formatFecha(fecha) {
-        if (!fecha) return { date: '', time: '' };
-        if (typeof fecha === "string") {
-            const d = new Date(fecha);
-            return {
-                date: d.toLocaleDateString('es-ES', { dateStyle: 'short' }),
-                time: d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-            };
-        } else if (typeof fecha.toDate === "function") {
-            const d = fecha.toDate();
-            return {
-                date: d.toLocaleDateString('es-ES', { dateStyle: 'short' }),
-                time: d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-            };
-        }
-        return { date: '', time: '' };
+    // Métodos públicos según modo (solo localStorage en este ejemplo)
+    async function addVendedor(name) { await addVendedorLS(name); }
+    async function updateVendedor(id, type, amount) { await updateVendedorLS(id, type, amount); }
+    async function deleteVendedor(id) { await deleteVendedorLS(id); }
+    async function addPuntoDeVenta(name) { await addPuntoDeVentaLS(name); }
+    async function deletePuntoDeVenta(id) { await deletePuntoDeVentaLS(id); }
+    async function addMovimientoPOS(nombre, monto, envia, recibe) { await addMovimientoPOSLS(nombre, monto, envia, recibe); }
+    async function deleteMovimientoPOS(id) { await deleteMovimientoPOSLS(id); }
+    async function addGasto(monto, concepto, categoria) { await addGastoLS(monto, concepto, categoria); }
+    async function deleteGasto(id) { await deleteGastoLS(id); }
+    async function updatePrecioUnidad(newPrice) { await updatePrecioUnidadLS(newPrice); }
+
+    // --- Modal Implementation (igual que antes) ---
+    function showModal(title, message, onConfirm, isConfirm = true) {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-message').textContent = message;
+        const modal = document.getElementById('custom-modal');
+        const confirmBtn = document.getElementById('modal-confirm');
+        const cancelBtn = document.getElementById('modal-cancel');
+        confirmBtn.onclick = () => { modal.classList.add('opacity-0', 'pointer-events-none'); onConfirm(); };
+        cancelBtn.onclick = () => { modal.classList.add('opacity-0', 'pointer-events-none'); };
+        cancelBtn.classList.toggle('hidden', !isConfirm);
+        confirmBtn.classList.toggle('bg-red-600', isConfirm);
+        confirmBtn.classList.toggle('hover:bg-red-700', isConfirm);
+        confirmBtn.textContent = isConfirm ? 'Confirmar' : 'Entendido';
+        modal.classList.remove('opacity-0', 'pointer-events-none');
     }
 
-    // ... (El resto de la lógica/renderizado de pestañas aquí, usando formatFecha en POS y Gastos)
+    function showLoading() { loadingOverlay.classList.remove('opacity-0', 'pointer-events-none'); }
+    function hideLoading() { loadingOverlay.classList.add('opacity-0', 'pointer-events-none'); }
 
-    // --- Firebase Initialization and Auth ---
-    if (firebaseConfig) {
-        setLogLevel('debug');
-        const app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
+    // --- Cálculo de stats de vendedores ---
+    function calculateVendedorStats(v) {
+        const stock_pendiente_qty = (v.entregado_qty || 0) - (v.vendido_qty || 0);
+        const deuda_total = (v.vendido_qty || 0) * precioUnidad;
+        const pendiente_de_pago = deuda_total - (v.pagado || 0);
+        return { stock_pendiente_qty, deuda_total, pendiente_de_pago };
+    }
 
-        const setupAuth = async () => {
-            try {
-                await setPersistence(auth, browserSessionPersistence);
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Firebase Auth Error:", error);
-            }
-        };
-
-        onAuthStateChanged(auth, (user) => {
-            userId = user ? user.uid : 'Anonimo-' + crypto.randomUUID();
-            userIdDisplay.textContent = `ID Usuario: ${userId.substring(0, 10)}...`;
-            isAuthReady = true;
-            hideLoading();
-            renderTab(currentTab);
-            setupFirestoreListeners();
+    // --- Render de pestañas principales ---
+    function renderTab(tabName) {
+        currentTab = tabName;
+        tabButtons.forEach(button => {
+            button.classList.remove('active');
+            if (button.dataset.tab === tabName) button.classList.add('active');
         });
-
-        setupAuth();
-    } else {
-        userId = 'Sim-' + crypto.randomUUID();
-        userIdDisplay.textContent = 'Modo Simulación';
-        isAuthReady = true;
-        loadAllLS();
-        hideLoading();
-        renderTab(currentTab);
+        switch (tabName) {
+            case TABS.VENDEDORES: renderVendedores(); break;
+            case TABS.POS: renderPuntosDeVenta(); break;
+            case TABS.GASTOS: renderGastos(); break;
+            case TABS.RESUMEN: renderResumen(); break;
+            case TABS.CONFIG: renderConfiguracion(); break;
+        }
     }
 
-    // ... El resto de código de renderizado (renderVendedores, renderPuntosDeVenta, renderGastos, renderResumen, renderConfiguracion, etc.)
-    // En POS y Gastos usa SIEMPRE formatFecha para mostrar fechas.
+    function renderVendedores() {
+        const html = `
+        <div class="space-y-6">
+            <div class="card bg-white p-4 rounded-xl">
+                <h2 class="text-xl font-semibold mb-3 text-gray-800">Agregar Vendedor</h2>
+                <div class="flex space-x-2">
+                    <input type="text" id="newVendedorName" placeholder="Nombre del Vendedor" class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <button id="addVendedorBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 text-sm">
+                        Agregar
+                    </button>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <h2 class="text-xl font-semibold text-gray-800">Lista de Vendedores (${vendedores.length})</h2>
+                ${vendedores.length === 0 ? '<p class="text-gray-500">No hay vendedores registrados.</p>' : ''}
+                ${vendedores.map(v => {
+                    const stats = calculateVendedorStats(v);
+                    const isStockLow = stats.stock_pendiente_qty < 5 && stats.stock_pendiente_qty > 0;
+                    const isStockEmpty = stats.stock_pendiente_qty <= 0;
+                    const isDebtPending = stats.pendiente_de_pago > 0.01;
+                    return `
+                        <div class="card bg-white p-4 rounded-xl border ${isDebtPending ? 'border-red-300' : 'border-gray-200'}">
+                            <h3 class="text-lg font-bold text-gray-900 mb-2">${v.nombre}</h3>
+                            <div class="grid grid-cols-2 gap-2 text-sm text-gray-700 mb-4">
+                                <p class="font-medium">Entregado (Qty): <span class="font-bold text-green-600">${v.entregado_qty.toFixed(0)}</span></p>
+                                <p class="font-medium">Vendido (Qty): <span class="font-bold text-blue-600">${v.vendido_qty.toFixed(0)}</span></p>
+                                <p class="font-medium">Stock Pendiente (Qty): 
+                                    <span class="font-bold ${isStockEmpty ? 'text-gray-500' : isStockLow ? 'text-orange-500' : 'text-yellow-600'}">
+                                        ${stats.stock_pendiente_qty.toFixed(0)}
+                                    </span>
+                                    ${isStockEmpty ? '<span class="text-xs text-red-500 ml-1">(Sin Stock)</span>' : ''}
+                                </p>
+                                <p class="font-medium">Deuda Total (Calculada): <span class="font-bold text-red-600">$${stats.deuda_total.toFixed(2)}</span></p>
+                                <p class="font-medium col-span-2">Pagado: <span class="font-bold text-green-600">$${(v.pagado || 0).toFixed(2)}</span></p>
+                                <p class="font-medium col-span-2">
+                                    CANTIDAD FALTANTE (PENDIENTE DE PAGO): 
+                                    <span class="font-extrabold ${isDebtPending ? 'text-red-700' : 'text-green-700'} text-lg">$${Math.max(0, stats.pendiente_de_pago).toFixed(2)}</span>
+                                </p>
+                            </div>
+                            <div class="space-y-3 pt-4 border-t border-gray-100">
+                                <div class="flex space-x-2">
+                                    <input type="number" id="qty-entrega-${v.id}" placeholder="Qty a Entregar" class="flex-grow p-2 border border-blue-300 rounded-lg text-sm">
+                                    <button data-id="${v.id}" data-type="ENTREGA" class="action-btn bg-blue-100 text-blue-800 font-medium py-2 px-3 rounded-lg text-xs hover:bg-blue-200">Entregar</button>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <input type="number" id="qty-venta-${v.id}" placeholder="Qty Vendida" class="flex-grow p-2 border border-blue-300 rounded-lg text-sm">
+                                    <button data-id="${v.id}" data-type="VENTA" class="action-btn bg-yellow-100 text-yellow-800 font-medium py-2 px-3 rounded-lg text-xs hover:bg-yellow-200">Registrar Venta</button>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <input type="number" id="monto-pago-${v.id}" placeholder="Monto del Pago Parcial" class="flex-grow p-2 border border-green-300 rounded-lg text-sm">
+                                    <button data-id="${v.id}" data-type="PAGO" class="action-btn bg-green-100 text-green-800 font-medium py-2 px-3 rounded-lg text-xs hover:bg-green-200">Registrar Pago</button>
+                                </div>
+                                <button data-id="${v.id}" class="delete-vendedor-btn text-red-500 hover:text-red-700 text-xs mt-2">Eliminar Vendedor</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+        `;
+        contentContainer.innerHTML = html;
+        attachVendedoresEvents();
+    }
+    function attachVendedoresEvents() {
+        document.getElementById('addVendedorBtn')?.addEventListener('click', () => {
+            const nameInput = document.getElementById('newVendedorName');
+            const name = nameInput.value.trim();
+            if (name) { addVendedor(name); nameInput.value = ''; }
+            else { showModal("Faltan Datos", "Por favor, ingresa un nombre para el vendedor.", () => {}, false); }
+        });
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.target.dataset.id;
+                const type = e.target.dataset.type;
+                let amount = 0;
+                let inputId;
+                if (type === 'ENTREGA') inputId = `qty-entrega-${id}`;
+                else if (type === 'VENTA') inputId = `qty-venta-${id}`;
+                else if (type === 'PAGO') inputId = `monto-pago-${id}`;
+                amount = parseFloat(document.getElementById(inputId).value);
+                if (isNaN(amount) || amount <= 0) { showModal("Valor Inválido", "Por favor, ingresa una cantidad válida (> 0).", () => {}, false); return; }
+                showLoading();
+                updateVendedor(id, type, amount).then(() => {
+                    document.getElementById(inputId).value = '';
+                    hideLoading();
+                }).catch(() => { hideLoading(); });
+            });
+        });
+        document.querySelectorAll('.delete-vendedor-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.target.dataset.id;
+                const vendedor = vendedores.find(v => v.id === id);
+                if (vendedor) showModal("Confirmar Eliminación", `¿Estás seguro de eliminar a ${vendedor.nombre}? Esto es irreversible.`, () => deleteVendedor(id));
+            });
+        });
+    }
+
+    // ------------------- POS --------------------
+    function renderPuntosDeVenta() {
+        if (!Array.isArray(puntosDeVenta)) puntosDeVenta = [];
+        if (!Array.isArray(movimientosPOS)) movimientosPOS = [];
+        const posNames = puntosDeVenta.map(p => p.nombre);
+
+        const html = `
+            <div class="space-y-6">
+                <div class="card bg-white p-4 rounded-xl">
+                    <h2 class="text-xl font-semibold mb-3 text-gray-800">1. Gestión de Puntos de Venta (POS)</h2>
+                    <div class="flex space-x-2 mb-4">
+                        <input type="text" id="newPosName" placeholder="Nombre del Nuevo Punto de Venta" class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <button id="addPosBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 text-sm">
+                            Agregar POS
+                        </button>
+                    </div>
+                    <div class="mt-4 border-t pt-4 border-gray-100">
+                        <h3 class="font-medium text-gray-700 mb-2">POS Registrados (${puntosDeVenta.length})</h3>
+                        <div class="flex flex-wrap gap-2">
+                            ${puntosDeVenta.length === 0 ? '<span class="text-gray-500 text-sm">Aún no hay puntos de venta registrados.</span>' : ''}
+                            ${puntosDeVenta.map(p => `
+                                <div class="flex items-center bg-gray-100 rounded-full px-3 py-1 text-sm text-gray-800">
+                                    ${p.nombre}
+                                    <button data-id="${p.id}" class="delete-pos-entity-btn ml-2 text-red-400 hover:text-red-600">
+                                        ${svgIcon('close', 'w-3 h-3')}
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                <div class="card bg-white p-4 rounded-xl">
+                    <h2 class="text-xl font-semibold mb-3 text-gray-800">2. Registrar Envío de Dinero</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <select id="posNameSelect" class="p-2 border border-gray-300 rounded-lg col-span-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <option value="" disabled selected>Selecciona Punto de Venta</option>
+                            ${posNames.map(name => `<option value="${name}">${name}</option>`).join('')}
+                        </select>
+                        ${posNames.length === 0 ? '<p class="text-xs text-red-500 col-span-2">¡Primero debes registrar un Punto de Venta arriba!</p>' : ''}
+                        <input type="number" id="posMonto" placeholder="Monto Enviado ($)" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <input type="text" id="posQuienEnviaInput" placeholder="Nombre del Encargado (Quien Envía)" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <input type="text" id="posQuienRecibe" placeholder="¿Quién Recibe el dinero?" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm col-span-2">
+                        <button id="addMovimientoBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 text-sm col-span-2 mt-2" ${posNames.length === 0 ? 'disabled' : ''}>
+                            Registrar Envío
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <h2 class="text-xl font-semibold text-gray-800">3. Histórico de Movimientos (${movimientosPOS.length})</h2>
+                    ${movimientosPOS.length === 0 ? '<p class="text-gray-500">No hay movimientos registrados.</p>' : ''}
+                    <div class="bg-white rounded-xl divide-y divide-gray-100">
+                    ${movimientosPOS.map(m => {
+                        const fecha = formatFecha(m.fecha_envio);
+                        return `
+                        <div class="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                            <div class="mb-2 sm:mb-0">
+                                <p class="font-bold text-lg text-indigo-700">$${m.monto.toFixed(2)}</p>
+                                <p class="text-sm text-gray-700">Punto: <span class="font-medium">${m.punto_venta_nombre}</span></p>
+                                <p class="text-xs text-gray-500">Envía (Encargado): ${m.encargado_envia} | Recibe: ${m.receptor_hub}</p>
+                            </div>
+                            <div class="text-right flex flex-col items-end space-y-1">
+                                <p class="text-sm font-semibold text-gray-800">${fecha.time}</p>
+                                <p class="text-xs text-gray-500">${fecha.date}</p>
+                                <button data-id="${m.id}" class="delete-pos-movimiento-btn text-red-400 hover:text-red-600 text-xs mt-1">
+                                    ${svgIcon('trash', 'w-4 h-4')}
+                                </button>
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        contentContainer.innerHTML = html;
+        attachPOSEvents();
+    }
+    function attachPOSEvents() {
+        document.getElementById('addPosBtn')?.addEventListener('click', () => {
+            const nameInput = document.getElementById('newPosName');
+            const name = nameInput.value.trim();
+            if (name) { addPuntoDeVenta(name); nameInput.value = ''; }
+            else { showModal("Faltan Datos", "Por favor, ingresa un nombre para el Punto de Venta.", () => {}, false); }
+        });
+        document.querySelectorAll('.delete-pos-entity-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.currentTarget.dataset.id;
+                const pos = puntosDeVenta.find(p => p.id === id);
+                if (pos) showModal("Confirmar Eliminación", `¿Estás seguro de eliminar el Punto de Venta "${pos.nombre}"? Esto no eliminará los movimientos históricos asociados.`, () => deletePuntoDeVenta(id));
+            });
+        });
+        document.getElementById('addMovimientoBtn')?.addEventListener('click', () => {
+            const nombre = document.getElementById('posNameSelect').value;
+            const monto = parseFloat(document.getElementById('posMonto').value);
+            const envia = document.getElementById('posQuienEnviaInput').value.trim();
+            const recibe = document.getElementById('posQuienRecibe').value.trim();
+            if (nombre && envia && recibe && !isNaN(monto) && monto > 0) {
+                showLoading();
+                addMovimientoPOS(nombre, monto, envia, recibe).then(() => {
+                    document.getElementById('posMonto').value = '';
+                    document.getElementById('posQuienRecibe').value = '';
+                    document.getElementById('posQuienEnviaInput').value = '';
+                    hideLoading();
+                }).catch(() => hideLoading());
+            } else {
+                showModal("Faltan Datos", "Por favor, selecciona un POS, ingresa el nombre del encargado (quien envía), un receptor y un monto válido (> 0).", () => {}, false);
+            }
+        });
+        document.querySelectorAll('.delete-pos-movimiento-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.currentTarget.dataset.id;
+                showModal("Confirmar Eliminación", `¿Estás seguro de eliminar este movimiento de dinero?`, () => deleteMovimientoPOS(id));
+            });
+        });
+    }
+
+    // ------------------- GASTOS --------------------
+    function renderGastos() {
+        if (!Array.isArray(gastos)) gastos = [];
+        const totalGastos = gastos.reduce((sum, g) => sum + g.monto, 0);
+        const uniqueCategories = [...new Set(gastos.map(g => g.categoria))].sort();
+        const html = `
+            <div class="space-y-6">
+                <div class="card bg-white p-4 rounded-xl">
+                    <h2 class="text-xl font-semibold mb-3 text-gray-800">Registrar Nuevo Gasto</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="number" id="gastoMonto" placeholder="Monto del Gasto ($)" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <input type="text" id="gastoCategoria" placeholder="Categoría (Ej: Renta, Transporte)" list="gastoCategoriesList" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <datalist id="gastoCategoriesList">
+                            ${uniqueCategories.map(cat => `<option value="${cat}">`).join('')}
+                        </datalist>
+                        <textarea id="gastoConcepto" placeholder="Concepto o Descripción del Gasto" rows="2" class="p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm col-span-2"></textarea>
+                        <button id="addGastoBtn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 text-sm col-span-2 mt-2">
+                            Registrar Gasto
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-semibold text-gray-800">Histórico de Gastos (${gastos.length})</h2>
+                        <p class="text-lg font-bold text-red-600">Total: $${totalGastos.toFixed(2)}</p>
+                    </div>
+                    ${gastos.length === 0 ? '<p class="text-gray-500">No hay gastos registrados.</p>' : ''}
+                    <div class="bg-white rounded-xl divide-y divide-gray-100">
+                    ${gastos.map(g => {
+                        const fechaG = formatFecha(g.fecha);
+                        return `
+                        <div class="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                            <div class="mb-2 sm:mb-0">
+                                <p class="font-bold text-lg text-red-600">-$${g.monto.toFixed(2)}</p>
+                                <p class="text-sm text-gray-700"><span class="font-medium">${g.concepto}</span></p>
+                                <p class="text-xs text-gray-500">Categoría: ${g.categoria}</p>
+                            </div>
+                            <div class="text-right flex items-center space-x-3">
+                                <p class="text-sm text-gray-500">${fechaG.date}</p>
+                                <button data-id="${g.id}" class="delete-gasto-btn text-red-400 hover:text-red-600 text-xs">
+                                    ${svgIcon('trash', 'w-4 h-4')}
+                                </button>
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        contentContainer.innerHTML = html;
+        attachGastosEvents();
+    }
+    function attachGastosEvents() {
+        document.getElementById('addGastoBtn')?.addEventListener('click', () => {
+            const monto = parseFloat(document.getElementById('gastoMonto').value);
+            const concepto = document.getElementById('gastoConcepto').value.trim();
+            const categoria = document.getElementById('gastoCategoria').value.trim() || 'Sin Categoría';
+            if (!isNaN(monto) && monto > 0 && concepto) {
+                showLoading();
+                addGasto(monto, concepto, categoria).then(() => {
+                    document.getElementById('gastoMonto').value = '';
+                    document.getElementById('gastoConcepto').value = '';
+                    document.getElementById('gastoCategoria').value = '';
+                    hideLoading();
+                }).catch(() => hideLoading());
+            } else {
+                showModal("Faltan Datos", "Por favor, ingresa un monto válido (> 0) y el concepto del gasto.", () => {}, false);
+            }
+        });
+        document.querySelectorAll('.delete-gasto-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.currentTarget.dataset.id;
+                showModal("Confirmar Eliminación", `¿Estás seguro de eliminar este gasto?`, () => deleteGasto(id));
+            });
+        });
+    }
+
+    // ----------- Las demás pestañas (Resumen, Config) igual que tu código original ------------
 
     tabButtons.forEach(button => {
         button.addEventListener('click', (e) => renderTab(e.target.dataset.tab));
@@ -324,6 +591,15 @@
         }
         return '';
     }
+
+    // --- Inicialización modo localStorage ---
+    userId = 'Sim-' + crypto.randomUUID();
+    userIdDisplay.textContent = 'Modo Simulación';
+    isAuthReady = true;
+    loadAllLS();
+    hideLoading();
+    renderTab(currentTab);
+
 </script>
 </body>
 </html>
